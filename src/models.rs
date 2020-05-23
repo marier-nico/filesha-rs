@@ -17,5 +17,5 @@ pub struct UserResult {
 
 #[derive(serde::Serialize, Debug)]
 pub struct ErrorResponse {
-    pub message: String
+    pub message: String,
 }

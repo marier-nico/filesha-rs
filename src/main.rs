@@ -24,9 +24,12 @@ embed_migrations!();
 mod models;
 mod passwords;
 mod schema;
+mod routes {
+    pub mod user;
+}
 
 #[database("data_db")]
-struct DBConnection(SqliteConnection);
+pub struct DBConnection(SqliteConnection);
 
 #[catch(500)]
 fn server_error(_req: &rocket::Request) -> Json<models::ErrorResponse> {
@@ -42,43 +45,11 @@ fn not_found(_req: &rocket::Request) -> Json<models::ErrorResponse> {
     })
 }
 
-fn generate_error(message: String, status: Status) -> status::Custom<Json<models::ErrorResponse>> {
+pub fn generate_error(
+    message: String,
+    status: Status,
+) -> status::Custom<Json<models::ErrorResponse>> {
     status::Custom(status, Json(models::ErrorResponse { message }))
-}
-
-#[post("/register", data = "<user>")]
-fn register(
-    conn: DBConnection,
-    user: Json<models::User>,
-) -> Result<Json<models::UserResult>, status::Custom<Json<models::ErrorResponse>>> {
-    let mut user = user.into_inner();
-    let password_hash = match passwords::hash_password(&user.password) {
-        Ok(hash) => hash,
-        Err(_) => {
-            return Err(generate_error(
-                "Could not encrypt password".to_string(),
-                Status::InternalServerError,
-            ))
-        }
-    }
-    .to_string();
-
-    user.password = password_hash;
-
-    if let Err(_) = diesel::insert_into(schema::users::table)
-        .values(&user)
-        .execute(&*conn)
-    {
-        return Err(generate_error(
-            "This user is already registered".to_string(),
-            Status::BadRequest,
-        ));
-    }
-
-    Ok(Json(models::UserResult {
-        email: user.email.to_string(),
-        display_name: user.display_name.to_string(),
-    }))
 }
 
 fn main() {
@@ -91,7 +62,7 @@ fn main() {
 
     rocket::ignite()
         .attach(DBConnection::fairing())
-        .mount("/", routes![register])
+        .mount("/", routes![routes::user::register])
         .register(catchers![server_error, not_found])
         .launch();
 }

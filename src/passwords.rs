@@ -95,7 +95,11 @@ pub fn hash_password(password: &str) -> Result<PasswordHash, PasswordError> {
     let mut salt: [u8; 16] = [0; 16];
     match RANDOMNESS_SOURCE.fill(&mut salt) {
         Ok(_) => (),
-        Err(_) => return Err(PasswordError::new("Could not get random bytes to generate a salt"))
+        Err(_) => {
+            return Err(PasswordError::new(
+                "Could not get random bytes to generate a salt",
+            ))
+        }
     };
 
     let mut hashed_bytes: [u8; CREDENTIAL_LEN] = [0; CREDENTIAL_LEN];
@@ -108,7 +112,11 @@ pub fn hash_password(password: &str) -> Result<PasswordHash, PasswordError> {
         &mut hashed_bytes,
     );
 
-    Ok(PasswordHash::new(hashed_bytes.to_vec(), ITERATIONS, salt.to_vec()))
+    Ok(PasswordHash::new(
+        hashed_bytes.to_vec(),
+        ITERATIONS,
+        salt.to_vec(),
+    ))
 }
 
 /// Returns a result containing the unit type if the provided password matches the hash, or an error.
