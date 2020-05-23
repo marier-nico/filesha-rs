@@ -6,6 +6,7 @@
         "pbkdf",
         "serde",
         "sqlite",
+        "unprocessable",
         "uuid"
     ]
 }

@@ -13,13 +13,13 @@ extern crate diesel_migrations;
 
 use diesel::prelude::*;
 use dotenv::dotenv;
+use parking_lot::RwLock;
 use rocket::http::Status;
 use rocket::response::status;
 use rocket_contrib::databases::diesel::SqliteConnection;
 use rocket_contrib::json::Json;
-use parking_lot::RwLock;
-use std::env;
 use std::collections::HashSet;
+use std::env;
 
 embed_migrations!();
 
@@ -49,6 +49,13 @@ fn not_found(_req: &rocket::Request) -> Json<models::ErrorResponse> {
     })
 }
 
+#[catch(422)]
+fn unprocessable_entity(_req: &rocket::Request) -> Json<models::ErrorResponse> {
+    Json(models::ErrorResponse {
+        message: "Invalid data format, please follow the API spec".to_string(),
+    })
+}
+
 pub fn generate_error(
     message: String,
     status: Status,
@@ -67,8 +74,11 @@ fn main() {
 
     rocket::ignite()
         .attach(DBConnection::fairing())
-        .mount("/user", routes![routes::user::register, routes::user::login])
-        .register(catchers![server_error, not_found])
+        .mount(
+            "/user",
+            routes![routes::user::register, routes::user::login],
+        )
+        .register(catchers![server_error, not_found, unprocessable_entity])
         .manage(active_session_ids)
         .launch();
 }
