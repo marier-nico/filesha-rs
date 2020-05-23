@@ -67,7 +67,7 @@ fn main() {
 
     rocket::ignite()
         .attach(DBConnection::fairing())
-        .mount("/", routes![routes::user::register])
+        .mount("/user", routes![routes::user::register, routes::user::login])
         .register(catchers![server_error, not_found])
         .manage(active_session_ids)
         .launch();
