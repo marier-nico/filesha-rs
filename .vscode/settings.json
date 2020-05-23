@@ -1,5 +1,10 @@
 {
     "cSpell.words": [
-        "pbkdf"
+        "Insertable",
+        "Queryable",
+        "dotenv",
+        "pbkdf",
+        "serde",
+        "sqlite"
     ]
 }
