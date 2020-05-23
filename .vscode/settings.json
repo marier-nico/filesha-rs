@@ -5,6 +5,7 @@
         "dotenv",
         "pbkdf",
         "serde",
-        "sqlite"
+        "sqlite",
+        "uuid"
     ]
 }

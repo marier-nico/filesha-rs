@@ -1,18 +1,20 @@
-use crate::DBConnection;
+use crate::generate_error;
 use crate::models;
 use crate::passwords;
-use crate::generate_error;
 use crate::schema;
+use crate::DBConnection;
 use diesel::prelude::*;
-use rocket::http::Status;
+use rocket::http::{Status, Cookie, Cookies};
 use rocket::response::status;
+use rocket::State;
 use rocket_contrib::json::Json;
-
 
 #[post("/register", data = "<user>")]
 pub fn register(
     conn: DBConnection,
-    user: Json<models::User>,
+    user: Json<models::UserCreate>,
+    active_session_ids: State<crate::SessionStore>,
+    mut cookies: Cookies,
 ) -> Result<Json<models::UserResult>, status::Custom<Json<models::ErrorResponse>>> {
     let mut user = user.into_inner();
     let password_hash = match passwords::hash_password(&user.password) {
@@ -38,8 +40,15 @@ pub fn register(
         ));
     }
 
-    Ok(Json(models::UserResult {
-        email: user.email.to_string(),
-        display_name: user.display_name.to_string(),
-    }))
+    let result = schema::users::table
+        .filter(schema::users::email.eq(user.email))
+        .limit(1)
+        .load::<models::User>(&*conn)
+        .expect("Error finding user");
+
+    cookies.add_private(Cookie::new("session", (&result[0]).id.to_string()));
+    let mut session_ids = active_session_ids.write();
+    session_ids.insert((&result[0]).id);
+    
+    Ok(Json(models::UserResult::from(&result[0])))
 }

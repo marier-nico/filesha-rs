@@ -17,7 +17,9 @@ use rocket::http::Status;
 use rocket::response::status;
 use rocket_contrib::databases::diesel::SqliteConnection;
 use rocket_contrib::json::Json;
+use parking_lot::RwLock;
 use std::env;
+use std::collections::HashSet;
 
 embed_migrations!();
 
@@ -27,6 +29,8 @@ mod schema;
 mod routes {
     pub mod user;
 }
+
+type SessionStore = RwLock<HashSet<i32>>;
 
 #[database("data_db")]
 pub struct DBConnection(SqliteConnection);
@@ -59,10 +63,12 @@ fn main() {
         .expect("Could not connect to database");
     embedded_migrations::run_with_output(&connection, &mut std::io::stdout())
         .expect("Could not apply database migrations");
+    let active_session_ids: SessionStore = RwLock::new(HashSet::new());
 
     rocket::ignite()
         .attach(DBConnection::fairing())
         .mount("/", routes![routes::user::register])
         .register(catchers![server_error, not_found])
+        .manage(active_session_ids)
         .launch();
 }
