@@ -14,15 +14,13 @@ extern crate diesel_migrations;
 use diesel::prelude::*;
 use dotenv::dotenv;
 use parking_lot::RwLock;
-use rocket::http::Status;
-use rocket::response::status;
 use rocket_contrib::databases::diesel::SqliteConnection;
-use rocket_contrib::json::Json;
 use std::collections::HashSet;
 use std::env;
 
 embed_migrations!();
 
+mod api_error;
 mod models;
 mod passwords;
 mod schema;
@@ -34,34 +32,6 @@ type SessionStore = RwLock<HashSet<i32>>;
 
 #[database("data_db")]
 pub struct DBConnection(SqliteConnection);
-
-#[catch(500)]
-fn server_error(_req: &rocket::Request) -> Json<models::ErrorResponse> {
-    Json(models::ErrorResponse {
-        message: "The server encountered an error processing your request".to_string(),
-    })
-}
-
-#[catch(404)]
-fn not_found(_req: &rocket::Request) -> Json<models::ErrorResponse> {
-    Json(models::ErrorResponse {
-        message: "Not found".to_string(),
-    })
-}
-
-#[catch(422)]
-fn unprocessable_entity(_req: &rocket::Request) -> Json<models::ErrorResponse> {
-    Json(models::ErrorResponse {
-        message: "Invalid data format, please follow the API spec".to_string(),
-    })
-}
-
-pub fn generate_error(
-    message: String,
-    status: Status,
-) -> status::Custom<Json<models::ErrorResponse>> {
-    status::Custom(status, Json(models::ErrorResponse { message }))
-}
 
 fn main() {
     dotenv().ok();
@@ -78,7 +48,11 @@ fn main() {
             "/user",
             routes![routes::user::register, routes::user::login],
         )
-        .register(catchers![server_error, not_found, unprocessable_entity])
+        .register(catchers![
+            api_error::server_error,
+            api_error::not_found,
+            api_error::unprocessable_entity
+        ])
         .manage(active_session_ids)
         .launch();
 }

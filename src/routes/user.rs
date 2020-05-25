@@ -1,11 +1,10 @@
-use crate::generate_error;
+use crate::api_error::{ApiError, CustomError};
 use crate::models;
 use crate::passwords;
 use crate::schema;
 use crate::DBConnection;
 use diesel::prelude::*;
 use rocket::http::{Cookie, Cookies, Status};
-use rocket::response::status;
 use rocket::State;
 use rocket_contrib::json::Json;
 
@@ -15,93 +14,68 @@ pub fn register(
     user: Json<models::UserCreate>,
     active_session_ids: State<crate::SessionStore>,
     mut cookies: Cookies,
-) -> Result<Json<models::UserResult>, status::Custom<Json<models::ErrorResponse>>> {
+) -> Result<Json<models::UserResult>, ApiError> {
     let mut user = user.into_inner();
-    let password_hash = match passwords::hash_password(&user.password) {
-        Ok(hash) => hash,
-        Err(_) => {
-            return Err(generate_error(
-                "Could not encrypt password".to_string(),
-                Status::InternalServerError,
-            ))
-        }
-    }
-    .to_string();
-
+    let password_hash = passwords::hash_password(&user.password)?.to_string();
     user.password = password_hash;
 
-    if let Err(_) = diesel::insert_into(schema::users::table)
+    diesel::insert_into(schema::users::table)
         .values(&user)
         .execute(&*conn)
-    {
-        return Err(generate_error(
-            "This user is already registered".to_string(),
-            Status::BadRequest,
-        ));
-    }
+        .map_err(|_| CustomError::new("This user is already registered", Status::BadRequest))?;
 
     let result = schema::users::table
         .filter(schema::users::email.eq(user.email))
         .limit(1)
-        .load::<models::User>(&*conn);
-    let result = match result {
-        Ok(users) => users,
-        Err(_) => {
-            return Err(generate_error(
-                "The user could not be created in the database".to_string(),
-                Status::InternalServerError,
-            ))
-        }
-    };
+        .load::<models::User>(&*conn)?
+        .into_iter()
+        .next()
+        .ok_or_else(|| ApiError::InternalServerError)?;
 
-    cookies.add_private(Cookie::new("session", (&result[0]).id.to_string()));
+    cookies.add_private(Cookie::new("session", result.id.to_string()));
     let mut session_ids = active_session_ids.write();
-    session_ids.insert((&result[0]).id);
+    session_ids.insert(result.id);
 
-    Ok(Json(models::UserResult::from(&result[0])))
+    Ok(Json(models::UserResult::from(&result)))
 }
 
+/// Logs in a user if they provide valid credentials.
+///
+/// A key component of this login route is that it operates in constant-time,
+/// meaning that it takes the same amount of time to return a response irrespective
+/// of whether or not the user exists. Verifying if passwords match takes time, but
+/// finding out that a user does not exist in the database is very fast, so we have
+/// to simulate a delay to ensure that no information can be gathered from the timing
+/// of the responses from this route.
 #[post("/login", data = "<user>")]
 pub fn login(
     conn: DBConnection,
     user: Json<models::UserLogin>,
     active_session_ids: State<crate::SessionStore>,
     mut cookies: Cookies,
-) -> Result<Json<models::UserResult>, status::Custom<Json<models::ErrorResponse>>> {
+) -> Result<Json<models::UserResult>, ApiError> {
     let user = user.into_inner();
-    let query_result = schema::users::table
+    let db_user = schema::users::table
         .filter(schema::users::email.eq(user.email))
         .limit(1)
-        .load::<models::User>(&*conn);
-    let db_user = match query_result {
-        Ok(users) => users.into_iter().next(),
-        Err(_) => {
-            return Err(generate_error(
-                "Error reading users in the database".to_string(),
-                Status::BadRequest,
-            ));
-        }
-    };
-    let db_user = match db_user {
-        Some(user) => user,
-        None => {
-            return Err(generate_error(
-                "Email not found, or incorrect password".to_string(),
+        .load::<models::User>(&*conn)?
+        .into_iter()
+        .next()
+        .ok_or_else(|| {
+            match passwords::hash_password(&"Dummy Password") {
+                Ok(_) => (),
+                Err(_) => return ApiError::InternalServerError,
+            }
+            ApiError::from(CustomError::new(
+                "User not found or incorrect password",
                 Status::BadRequest,
             ))
-        }
-    };
+        })?;
 
-    let password_hash = match passwords::PasswordHash::from(&db_user.password) {
-        Ok(hash) => hash,
-        Err(e) => return Err(generate_error(e.to_string(), Status::InternalServerError)),
-    };
-    if let Err(_) = passwords::verify_password(&user.password, &password_hash) {
-        return Err(generate_error(
-            "Email not found, or incorrect password".to_string(),
-            Status::BadRequest,
-        ));
-    }
+    let password_hash = passwords::PasswordHash::from(&db_user.password)?;
+    passwords::verify_password(&user.password, &password_hash).map_err(|_| {
+        CustomError::new("User not found or incorrect password", Status::BadRequest)
+    })?;
 
     cookies.add_private(Cookie::new("session", db_user.id.to_string()));
     let mut active_session_ids = active_session_ids.write();
