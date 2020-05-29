@@ -7,6 +7,7 @@ use diesel::prelude::*;
 use rocket::http::{Cookie, Cookies, Status};
 use rocket::State;
 use rocket_contrib::json::Json;
+use uuid::Uuid;
 
 #[post("/register", data = "<user>")]
 pub fn register(
@@ -25,16 +26,17 @@ pub fn register(
         .map_err(|_| CustomError::new("This user is already registered", Status::BadRequest))?;
 
     let result = schema::users::table
-        .filter(schema::users::email.eq(user.email))
+        .filter(schema::users::email.eq(&user.email))
         .limit(1)
         .load::<models::User>(&*conn)?
         .into_iter()
         .next()
         .ok_or_else(|| ApiError::InternalServerError)?;
 
-    cookies.add_private(Cookie::new("session", result.id.to_string()));
+    let session_id = Uuid::new_v4();
+    cookies.add_private(Cookie::new("session", session_id.to_string()));
     let mut session_ids = active_session_ids.write();
-    session_ids.insert(result.id);
+    session_ids.insert(session_id, user.email);
 
     Ok(Json(models::UserResult::from(&result)))
 }
@@ -77,9 +79,10 @@ pub fn login(
         CustomError::new("User not found or incorrect password", Status::BadRequest)
     })?;
 
-    cookies.add_private(Cookie::new("session", db_user.id.to_string()));
+    let session_id = Uuid::new_v4();
+    cookies.add_private(Cookie::new("session", session_id.to_string()));
     let mut active_session_ids = active_session_ids.write();
-    active_session_ids.insert(db_user.id);
+    active_session_ids.insert(session_id, db_user.email.to_string());
 
     Ok(Json(models::UserResult::from(&db_user)))
 }

@@ -15,8 +15,9 @@ use diesel::prelude::*;
 use dotenv::dotenv;
 use parking_lot::RwLock;
 use rocket_contrib::databases::diesel::SqliteConnection;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::env;
+use uuid::Uuid;
 
 embed_migrations!();
 
@@ -28,7 +29,8 @@ mod routes {
     pub mod user;
 }
 
-type SessionStore = RwLock<HashSet<i32>>;
+type Email = String;
+type SessionStore = RwLock<HashMap<Uuid, Email>>;
 
 #[database("data_db")]
 pub struct DBConnection(SqliteConnection);
@@ -40,7 +42,7 @@ fn main() {
         .expect("Could not connect to database");
     embedded_migrations::run_with_output(&connection, &mut std::io::stdout())
         .expect("Could not apply database migrations");
-    let active_session_ids: SessionStore = RwLock::new(HashSet::new());
+    let active_session_ids: SessionStore = RwLock::new(HashMap::new());
 
     rocket::ignite()
         .attach(DBConnection::fairing())
