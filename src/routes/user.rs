@@ -7,6 +7,7 @@ use diesel::prelude::*;
 use rocket::http::{Cookie, Cookies, Status};
 use rocket::State;
 use rocket_contrib::json::Json;
+use std::env;
 use uuid::Uuid;
 
 #[post("/register", data = "<user>")]
@@ -16,6 +17,13 @@ pub fn register(
     active_session_ids: State<crate::SessionStore>,
     mut cookies: Cookies,
 ) -> Result<Json<models::UserResult>, ApiError> {
+    env::var("ALLOW_REGISTRATIONS").map_err(|_| {
+        CustomError::new(
+            "User registrations have been disabled",
+            Status::Unauthorized,
+        )
+    })?;
+
     let mut user = user.into_inner();
     let password_hash = passwords::hash_password(&user.password)?.to_string();
     user.password = password_hash;
