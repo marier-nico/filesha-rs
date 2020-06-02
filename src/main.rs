@@ -22,15 +22,18 @@ use uuid::Uuid;
 embed_migrations!();
 
 mod api_error;
+mod guards;
 mod models;
 mod passwords;
 mod schema;
 mod routes {
     pub mod user;
+    pub mod file;
 }
 
 type Email = String;
 type SessionStore = RwLock<HashMap<Uuid, Email>>;
+type PendingUploadStore = RwLock<HashMap<Uuid, models::PendingUpload>>;
 
 #[database("data_db")]
 pub struct DBConnection(SqliteConnection);
@@ -43,6 +46,7 @@ fn main() {
     embedded_migrations::run_with_output(&connection, &mut std::io::stdout())
         .expect("Could not apply database migrations");
     let active_session_ids: SessionStore = RwLock::new(HashMap::new());
+    let pending_uploads: PendingUploadStore = RwLock::new(HashMap::new());
 
     rocket::ignite()
         .attach(DBConnection::fairing())
@@ -50,11 +54,13 @@ fn main() {
             "/user",
             routes![routes::user::register, routes::user::login],
         )
+        .mount("/file", routes![routes::file::new_upload])
         .register(catchers![
             api_error::server_error,
             api_error::not_found,
             api_error::unprocessable_entity
         ])
         .manage(active_session_ids)
+        .manage(pending_uploads)
         .launch();
 }

@@ -1,6 +1,7 @@
 use crate::schema::users;
 use diesel::{Insertable, Queryable};
 use serde;
+use std::path::PathBuf;
 
 #[derive(serde::Deserialize, Queryable)]
 pub struct User {
@@ -39,4 +40,24 @@ impl UserResult {
 pub struct UserLogin {
     pub email: String,
     pub password: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct Message {
+    pub message: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct FilePath {
+    pub path: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct UploadID {
+    pub upload_id: uuid::Uuid
+}
+
+pub struct PendingUpload {
+    pub path: PathBuf,
+    pub user: User,
 }
