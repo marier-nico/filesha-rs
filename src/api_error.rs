@@ -80,6 +80,12 @@ impl From<PasswordError> for ApiError {
     }
 }
 
+impl From<std::io::Error> for ApiError {
+    fn from(_: std::io::Error) -> Self {
+        ApiError::InternalServerError
+    }
+}
+
 impl<'a> From<CustomError<'a>> for ApiError {
     fn from(e: CustomError) -> Self {
         ApiError::Custom(status::Custom(

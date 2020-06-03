@@ -1,9 +1,13 @@
+use crate::api_error::{ApiError, CustomError};
 use crate::schema::users;
 use diesel::{Insertable, Queryable};
+use rocket::http::Status;
 use serde;
-use std::path::PathBuf;
+use std::cmp::PartialEq;
+use std::fmt;
+use std::path::{Component, PathBuf};
 
-#[derive(serde::Deserialize, Queryable)]
+#[derive(PartialEq, serde::Deserialize, Queryable)]
 pub struct User {
     pub id: i32,
     pub email: String,
@@ -48,16 +52,60 @@ pub struct Message {
 }
 
 #[derive(serde::Deserialize)]
-pub struct FilePath {
+pub struct JsonPath {
     pub path: String,
+}
+
+impl JsonPath {
+    pub fn to_pathbuf(self) -> Result<PathBuf, ApiError> {
+        let path = PathBuf::from(self.path);
+        if path.components().any(|c| c == Component::ParentDir) {
+            Err(CustomError::new(
+                "Paths referencing the parent dir are not allowed",
+                Status::BadRequest,
+            ))?;
+        }
+        if path.is_absolute() {
+            Err(CustomError::new(
+                "Absolute paths are not allowed",
+                Status::BadRequest,
+            ))?;
+        }
+
+        Ok(path)
+    }
 }
 
 #[derive(serde::Serialize)]
 pub struct UploadID {
-    pub upload_id: uuid::Uuid
+    pub upload_id: uuid::Uuid,
 }
 
 pub struct PendingUpload {
     pub path: PathBuf,
     pub user: User,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub enum FileSystemElementType {
+    File,
+    Directory,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct FileSystemElement {
+    pub element_type: FileSystemElementType,
+    pub name: String,
+    pub bytes: u64,
+}
+
+#[derive(serde::Serialize)]
+pub struct DirContents {
+    pub contents: Vec<FileSystemElement>,
+}
+
+impl fmt::Debug for DirContents {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_list().entries(self.contents.iter()).finish()
+    }
 }

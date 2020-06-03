@@ -3,6 +3,7 @@
         "Insertable",
         "Queryable",
         "dotenv",
+        "pathbuf",
         "pbkdf",
         "serde",
         "sqlite",

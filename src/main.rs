@@ -27,8 +27,8 @@ mod models;
 mod passwords;
 mod schema;
 mod routes {
-    pub mod user;
     pub mod file;
+    pub mod user;
 }
 
 type Email = String;
@@ -54,7 +54,14 @@ fn main() {
             "/user",
             routes![routes::user::register, routes::user::login],
         )
-        .mount("/file", routes![routes::file::new_upload])
+        .mount(
+            "/file",
+            routes![
+                routes::file::new_upload,
+                routes::file::upload,
+                routes::file::ls
+            ],
+        )
         .register(catchers![
             api_error::server_error,
             api_error::not_found,
