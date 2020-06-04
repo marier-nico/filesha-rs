@@ -23,9 +23,13 @@ embed_migrations!();
 
 mod api_error;
 mod guards;
-mod models;
 mod passwords;
 mod schema;
+mod models {
+    pub mod common_models;
+    pub mod file;
+    pub mod user;
+}
 mod routes {
     pub mod file;
     pub mod user;
@@ -33,7 +37,7 @@ mod routes {
 
 type Email = String;
 type SessionStore = RwLock<HashMap<Uuid, Email>>;
-type PendingUploadStore = RwLock<HashMap<Uuid, models::PendingUpload>>;
+type PendingUploadStore = RwLock<HashMap<Uuid, models::file::PendingUpload>>;
 
 #[database("data_db")]
 pub struct DBConnection(SqliteConnection);

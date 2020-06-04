@@ -1,4 +1,4 @@
-use crate::models::User;
+use crate::models::user::User;
 use crate::schema::users;
 use crate::DBConnection;
 use crate::SessionStore;

@@ -1,57 +1,11 @@
 use crate::api_error::{ApiError, CustomError};
-use crate::schema::users;
-use diesel::{Insertable, Queryable};
+use crate::models::user::User;
 use rocket::http::Status;
-use serde;
-use std::cmp::PartialEq;
+use serde::{Serialize, Deserialize};
 use std::fmt;
-use std::path::{Component, PathBuf};
+use std::path::{PathBuf, Component};
 
-#[derive(PartialEq, serde::Deserialize, Queryable)]
-pub struct User {
-    pub id: i32,
-    pub email: String,
-    pub display_name: String,
-    pub password: String,
-}
-
-#[table_name = "users"]
-#[derive(serde::Deserialize, Insertable)]
-pub struct UserCreate {
-    pub email: String,
-    pub display_name: String,
-    pub password: String,
-}
-
-#[derive(serde::Serialize, Queryable)]
-pub struct UserResult {
-    pub id: i32,
-    pub email: String,
-    pub display_name: String,
-}
-
-impl UserResult {
-    pub fn from(user: &User) -> UserResult {
-        UserResult {
-            id: user.id,
-            email: user.email.to_string(),
-            display_name: user.display_name.to_string(),
-        }
-    }
-}
-
-#[derive(serde::Deserialize)]
-pub struct UserLogin {
-    pub email: String,
-    pub password: String,
-}
-
-#[derive(serde::Serialize)]
-pub struct Message {
-    pub message: String,
-}
-
-#[derive(serde::Deserialize)]
+#[derive(Deserialize)]
 pub struct JsonPath {
     pub path: String,
 }
@@ -76,7 +30,7 @@ impl JsonPath {
     }
 }
 
-#[derive(serde::Serialize)]
+#[derive(Serialize)]
 pub struct UploadID {
     pub upload_id: uuid::Uuid,
 }
@@ -86,20 +40,20 @@ pub struct PendingUpload {
     pub user: User,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Serialize)]
 pub enum FileSystemElementType {
     File,
     Directory,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Serialize)]
 pub struct FileSystemElement {
     pub element_type: FileSystemElementType,
     pub name: String,
     pub bytes: u64,
 }
 
-#[derive(serde::Serialize)]
+#[derive(Serialize)]
 pub struct DirContents {
     pub contents: Vec<FileSystemElement>,
 }

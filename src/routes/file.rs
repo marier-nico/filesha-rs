@@ -1,8 +1,9 @@
 use crate::api_error::{ApiError, CustomError};
-use crate::models::{
-    DirContents, FileSystemElement, FileSystemElementType, JsonPath, Message, PendingUpload,
-    UploadID, User,
+use crate::models::file::{
+    DirContents, FileSystemElement, FileSystemElementType, JsonPath, PendingUpload, UploadID,
 };
+use crate::models::common_models::Message;
+use crate::models::user::User;
 use crate::PendingUploadStore;
 use rocket::data::Data;
 use rocket::http::Status;

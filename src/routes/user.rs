@@ -1,8 +1,8 @@
 use crate::api_error::{ApiError, CustomError};
-use crate::models;
+use crate::models::user::{User, UserCreate, UserResult, UserLogin};
 use crate::passwords;
 use crate::schema;
-use crate::DBConnection;
+use crate::{DBConnection, SessionStore};
 use diesel::prelude::*;
 use rocket::http::{Cookie, Cookies, Status};
 use rocket::State;
@@ -13,10 +13,10 @@ use uuid::Uuid;
 #[post("/register", data = "<user>")]
 pub fn register(
     conn: DBConnection,
-    user: Json<models::UserCreate>,
-    active_session_ids: State<crate::SessionStore>,
+    user: Json<UserCreate>,
+    active_session_ids: State<SessionStore>,
     mut cookies: Cookies,
-) -> Result<Json<models::UserResult>, ApiError> {
+) -> Result<Json<UserResult>, ApiError> {
     env::var("ALLOW_REGISTRATIONS").map_err(|_| {
         CustomError::new(
             "User registrations have been disabled",
@@ -36,7 +36,7 @@ pub fn register(
     let result = schema::users::table
         .filter(schema::users::email.eq(&user.email))
         .limit(1)
-        .load::<models::User>(&*conn)?
+        .load::<User>(&*conn)?
         .into_iter()
         .next()
         .ok_or_else(|| ApiError::InternalServerError)?;
@@ -46,7 +46,7 @@ pub fn register(
     let mut session_ids = active_session_ids.write();
     session_ids.insert(session_id, user.email);
 
-    Ok(Json(models::UserResult::from(&result)))
+    Ok(Json(UserResult::from(&result)))
 }
 
 /// Logs in a user if they provide valid credentials.
@@ -60,15 +60,15 @@ pub fn register(
 #[post("/login", data = "<user>")]
 pub fn login(
     conn: DBConnection,
-    user: Json<models::UserLogin>,
-    active_session_ids: State<crate::SessionStore>,
+    user: Json<UserLogin>,
+    active_session_ids: State<SessionStore>,
     mut cookies: Cookies,
-) -> Result<Json<models::UserResult>, ApiError> {
+) -> Result<Json<UserResult>, ApiError> {
     let user = user.into_inner();
     let db_user = schema::users::table
         .filter(schema::users::email.eq(user.email))
         .limit(1)
-        .load::<models::User>(&*conn)?
+        .load::<User>(&*conn)?
         .into_iter()
         .next()
         .ok_or_else(|| {
@@ -92,5 +92,5 @@ pub fn login(
     let mut active_session_ids = active_session_ids.write();
     active_session_ids.insert(session_id, db_user.email.to_string());
 
-    Ok(Json(models::UserResult::from(&db_user)))
+    Ok(Json(UserResult::from(&db_user)))
 }
