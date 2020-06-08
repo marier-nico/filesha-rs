@@ -23,6 +23,7 @@ mod api_error;
 mod guards;
 mod passwords;
 mod schema;
+mod utils;
 mod db {
     pub mod user;
 }
@@ -66,7 +67,8 @@ fn main() {
             routes![
                 routes::file::new_upload,
                 routes::file::upload,
-                routes::file::ls
+                routes::file::ls,
+                routes::file::mkdir
             ],
         )
         .register(catchers![

@@ -1,17 +1,16 @@
 use crate::api_error::{ApiError, CustomError};
+use crate::models::common_models::Message;
 use crate::models::file::{
     DirContents, FileSystemElement, FileSystemElementType, JsonPath, PendingUpload, UploadID,
 };
-use crate::models::common_models::Message;
 use crate::models::user::User;
+use crate::utils;
 use crate::PendingUploadStore;
 use rocket::data::Data;
 use rocket::http::Status;
 use rocket::State;
 use rocket_contrib::json::Json;
-use std::env;
 use std::fs;
-use std::path::PathBuf;
 use uuid::Uuid;
 
 /// Prepare a new file upload to the server
@@ -30,10 +29,8 @@ pub fn new_upload(
     user: User,
     pending_uploads: State<PendingUploadStore>,
 ) -> Result<Json<UploadID>, ApiError> {
-    let path = path.into_inner().to_pathbuf()?;
-    let storage_root = env::var("STORAGE_LOCATION").map_err(|_| ApiError::InternalServerError)?;
-    let full_path = PathBuf::from(format!("{}/{}", storage_root, user.id)).join(path);
-    if full_path.is_dir() {
+    let path = utils::user_root_path(&user)?.join(path.into_inner().to_pathbuf()?);
+    if path.is_dir() {
         Err(CustomError::new(
             "Paths must point to a file",
             Status::BadRequest,
@@ -41,10 +38,7 @@ pub fn new_upload(
     }
 
     let upload_id = Uuid::new_v4();
-    let pending_upload = PendingUpload {
-        path: full_path,
-        user,
-    };
+    let pending_upload = PendingUpload { path, user };
     pending_uploads.write().insert(upload_id, pending_upload);
 
     Ok(Json(UploadID { upload_id }))
@@ -99,18 +93,9 @@ pub fn upload(
 
 #[post("/ls", data = "<path>")]
 pub fn ls(path: Json<JsonPath>, user: User) -> Result<Json<DirContents>, ApiError> {
-    let path = path.into_inner().to_pathbuf()?;
-    let storage_root = env::var("STORAGE_LOCATION").map_err(|_| ApiError::InternalServerError)?;
-    let full_path = PathBuf::from(format!("{}/{}", storage_root, user.id)).join(path);
-    if !full_path.is_dir() {
-        Err(CustomError::new(
-            "Path must be a directory",
-            Status::BadRequest,
-        ))?;
-    }
-
+    let path = utils::user_root_path(&user)?.join(path.into_inner().to_pathbuf()?);
     let mut contents = vec![];
-    let entries = fs::read_dir(full_path).map_err(|_| {
+    let entries = fs::read_dir(path).map_err(|_| {
         CustomError::new(
             "The directory does not exist, or you are not allowed to view it",
             Status::BadRequest,
@@ -136,4 +121,16 @@ pub fn ls(path: Json<JsonPath>, user: User) -> Result<Json<DirContents>, ApiErro
     }
 
     Ok(Json(DirContents { contents }))
+}
+
+#[post("/mkdir", data = "<path>")]
+pub fn mkdir(path: Json<JsonPath>, user: User) -> Result<Json<Message>, ApiError> {
+    let path = utils::user_root_path(&user)?.join(path.into_inner().to_pathbuf()?);
+
+    fs::create_dir_all(path).map_err(|_| CustomError::new(
+        "Could not create directory",
+        Status::InternalServerError,
+    ))?;
+
+    Ok(Json(Message {message: "Directory created successfully".to_string()}))
 }
