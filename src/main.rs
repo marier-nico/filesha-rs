@@ -19,12 +19,13 @@ use std::collections::HashMap;
 use std::env;
 use uuid::Uuid;
 
-embed_migrations!();
-
 mod api_error;
 mod guards;
 mod passwords;
 mod schema;
+mod db {
+    pub mod user;
+}
 mod models {
     pub mod common_models;
     pub mod file;
@@ -34,6 +35,8 @@ mod routes {
     pub mod file;
     pub mod user;
 }
+
+embed_migrations!();
 
 type Email = String;
 type SessionStore = RwLock<HashMap<Uuid, Email>>;
