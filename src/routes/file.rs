@@ -32,7 +32,7 @@ pub fn new_upload(
     let path = utils::user_root_path(&user)?.join(path.into_inner().to_pathbuf()?);
     if path.is_dir() {
         Err(CustomError::new(
-            "Paths must point to a file",
+            "Paths must point to a file".to_string(),
             Status::BadRequest,
         ))?;
     }
@@ -52,14 +52,14 @@ pub fn upload(
     pending_uploads_lock: State<PendingUploadStore>,
 ) -> Result<Json<Message>, ApiError> {
     let parsed_id = Uuid::parse_str(&id)
-        .map_err(|_| CustomError::new("Invalid upload ID", Status::BadRequest))?;
+        .map_err(|_| CustomError::new("Invalid upload ID".to_string(), Status::BadRequest))?;
     let pending_uploads = pending_uploads_lock.read();
     let associated_upload = pending_uploads
         .get(&parsed_id)
-        .ok_or_else(|| CustomError::new("Upload ID not in use", Status::BadRequest))?;
+        .ok_or_else(|| CustomError::new("Upload ID not in use".to_string(), Status::BadRequest))?;
     if associated_upload.user != user {
         Err(CustomError::new(
-            "A different user created this upload",
+            "A different user created this upload".to_string(),
             Status::Unauthorized,
         ))?;
     }
@@ -71,16 +71,19 @@ pub fn upload(
         .to_string();
 
     if let Some(path) = associated_upload.path.parent() {
-        fs::create_dir_all(path).map_err(|_| {
+        fs::create_dir_all(path).map_err(|e| {
             CustomError::new(
-                "Could not create dir to save file",
+                e.to_string(),
                 Status::InternalServerError,
             )
         })?;
     }
     drop(pending_uploads); // Release the lock explicitly before streaming the file to disk
-    file.stream_to_file(str_path).map_err(|_| {
-        CustomError::new("Could not save data to file", Status::InternalServerError)
+    file.stream_to_file(str_path).map_err(|e| {
+        CustomError::new(
+            e.to_string(),
+            Status::InternalServerError,
+        )
     })?;
 
     let mut pending_uploads = pending_uploads_lock.write();
@@ -95,9 +98,9 @@ pub fn upload(
 pub fn ls(path: Json<JsonPath>, user: User) -> Result<Json<DirContents>, ApiError> {
     let path = utils::user_root_path(&user)?.join(path.into_inner().to_pathbuf()?);
     let mut contents = vec![];
-    let entries = fs::read_dir(path).map_err(|_| {
+    let entries = fs::read_dir(path).map_err(|e| {
         CustomError::new(
-            "The directory does not exist, or you are not allowed to view it",
+            e.to_string(),
             Status::BadRequest,
         )
     })?;
@@ -127,10 +130,10 @@ pub fn ls(path: Json<JsonPath>, user: User) -> Result<Json<DirContents>, ApiErro
 pub fn mkdir(path: Json<JsonPath>, user: User) -> Result<Json<Message>, ApiError> {
     let path = utils::user_root_path(&user)?.join(path.into_inner().to_pathbuf()?);
 
-    fs::create_dir_all(path).map_err(|_| CustomError::new(
-        "Could not create directory",
-        Status::InternalServerError,
-    ))?;
+    fs::create_dir_all(path)
+        .map_err(|e| CustomError::new(e.to_string(), Status::InternalServerError))?;
 
-    Ok(Json(Message {message: "Directory created successfully".to_string()}))
+    Ok(Json(Message {
+        message: "Directory created successfully".to_string(),
+    }))
 }

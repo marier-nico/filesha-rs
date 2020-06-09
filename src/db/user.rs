@@ -11,7 +11,7 @@ pub fn create(user: &UserCreate, conn: &SqliteConnection) -> Result<(), ApiError
     insert_into(users_table)
         .values(user)
         .execute(conn)
-        .map_err(|_| CustomError::new("This user is already registered", Status::BadRequest))?;
+        .map_err(|_| CustomError::new("This user is already registered".to_string(), Status::BadRequest))?;
 
     Ok(())
 }

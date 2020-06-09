@@ -12,17 +12,18 @@ use std::fmt;
 pub enum ApiError {
     NotFound,
     InternalServerError,
+    MissingEnvVars(Vec<String>),
     Custom(status::Custom<Json<ErrorResponse>>),
 }
 
 #[derive(Debug)]
-pub struct CustomError<'a> {
-    pub message: &'a str,
+pub struct CustomError {
+    pub message: String,
     pub status: Status,
 }
 
-impl<'a> CustomError<'a> {
-    pub fn new(msg: &'a str, status: Status) -> Self {
+impl CustomError {
+    pub fn new(msg: String, status: Status) -> Self {
         CustomError {
             message: msg,
             status,
@@ -47,9 +48,10 @@ impl<'r> Responder<'r> for ApiError {
 
 impl fmt::Display for ApiError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
+        match &*self {
             ApiError::NotFound => f.write_str("NotFound"),
             ApiError::InternalServerError => f.write_str("InternalServerError"),
+            ApiError::MissingEnvVars(vars) => f.write_str(&format!("Missing env vars: {:#?}", vars)),
             ApiError::Custom(_) => f.write_str("CustomJsonError"),
         }
     }
@@ -60,6 +62,7 @@ impl StdError for ApiError {
         match *self {
             ApiError::NotFound => "Record not found",
             ApiError::InternalServerError => "Internal server error",
+            ApiError::MissingEnvVars(_) => "Missing environment variables",
             ApiError::Custom(_) => "Custom JSON error message",
         }
     }
@@ -86,7 +89,7 @@ impl From<std::io::Error> for ApiError {
     }
 }
 
-impl<'a> From<CustomError<'a>> for ApiError {
+impl From<CustomError> for ApiError {
     fn from(e: CustomError) -> Self {
         ApiError::Custom(status::Custom(
             e.status,
@@ -101,7 +104,7 @@ impl<'a> From<CustomError<'a>> for ApiError {
 pub fn unauthorized(_req: &rocket::Request) -> ApiError {
     ApiError::from(CustomError {
         status: Status::Unauthorized,
-        message: "You may not access this resource",
+        message: "You may not access this resource".to_string(),
     })
 }
 
@@ -109,7 +112,7 @@ pub fn unauthorized(_req: &rocket::Request) -> ApiError {
 pub fn not_found(_req: &rocket::Request) -> ApiError {
     ApiError::from(CustomError {
         status: Status::NotFound,
-        message: "Not found",
+        message: "Not found".to_string(),
     })
 }
 
@@ -117,7 +120,7 @@ pub fn not_found(_req: &rocket::Request) -> ApiError {
 pub fn unprocessable_entity(_req: &rocket::Request) -> ApiError {
     ApiError::from(CustomError {
         status: Status::UnprocessableEntity,
-        message: "Invalid data format, please follow the API spec",
+        message: "Invalid data format, please follow the API spec".to_string(),
     })
 }
 
@@ -125,6 +128,6 @@ pub fn unprocessable_entity(_req: &rocket::Request) -> ApiError {
 pub fn server_error(_req: &rocket::Request) -> ApiError {
     ApiError::from(CustomError {
         status: Status::InternalServerError,
-        message: "The server encountered an error processing your request",
+        message: "The server encountered an error processing your request".to_string(),
     })
 }

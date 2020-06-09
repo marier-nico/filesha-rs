@@ -1,9 +1,9 @@
 use crate::api_error::{ApiError, CustomError};
 use crate::models::user::User;
 use rocket::http::Status;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::fmt;
-use std::path::{PathBuf, Component};
+use std::path::{Component, PathBuf};
 
 #[derive(Deserialize)]
 pub struct JsonPath {
@@ -15,13 +15,13 @@ impl JsonPath {
         let path = PathBuf::from(self.path);
         if path.components().any(|c| c == Component::ParentDir) {
             Err(CustomError::new(
-                "Paths referencing the parent dir are not allowed",
+                "Paths referencing the parent dir are not allowed".to_string(),
                 Status::BadRequest,
             ))?;
         }
         if path.is_absolute() {
             Err(CustomError::new(
-                "Absolute paths are not allowed",
+                "Absolute paths are not allowed".to_string(),
                 Status::BadRequest,
             ))?;
         }

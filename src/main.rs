@@ -48,6 +48,7 @@ pub struct DBConnection(SqliteConnection);
 
 fn main() {
     dotenv().ok();
+    utils::ensure_all_env_vars_are_set().expect("Some required environment variables are not set");
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let connection = diesel::sqlite::SqliteConnection::establish(&database_url)
         .expect("Could not connect to database");

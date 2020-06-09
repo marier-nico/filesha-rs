@@ -18,7 +18,7 @@ pub fn register(
 ) -> Result<Json<UserResult>, ApiError> {
     env::var("ALLOW_REGISTRATIONS").map_err(|_| {
         CustomError::new(
-            "User registrations have been disabled",
+            "User registrations have been disabled".to_string(),
             Status::Unauthorized,
         )
     })?;
@@ -28,8 +28,8 @@ pub fn register(
     user.password = password_hash;
 
     db::user::create(&user, &*conn)?;
-    let created_user =
-        db::user::get_by_email(&user.email, &*conn)?.ok_or_else(|| ApiError::InternalServerError)?;
+    let created_user = db::user::get_by_email(&user.email, &*conn)?
+        .ok_or_else(|| ApiError::InternalServerError)?;
 
     let session_id = Uuid::new_v4();
     cookies.add_private(Cookie::new("session", session_id.to_string()));
@@ -55,21 +55,23 @@ pub fn login(
     mut cookies: Cookies,
 ) -> Result<Json<UserResult>, ApiError> {
     let user = user.into_inner();
-    let db_user = db::user::get_by_email(&user.email, &*conn)?
-        .ok_or_else(|| {
-            match passwords::hash_password(&"Dummy Password") {
-                Ok(_) => (),
-                Err(_) => return ApiError::InternalServerError,
-            }
-            ApiError::from(CustomError::new(
-                "User not found or incorrect password",
-                Status::BadRequest,
-            ))
-        })?;
+    let db_user = db::user::get_by_email(&user.email, &*conn)?.ok_or_else(|| {
+        match passwords::hash_password(&"Dummy Password") {
+            Ok(_) => (),
+            Err(_) => return ApiError::InternalServerError,
+        }
+        ApiError::from(CustomError::new(
+            "User not found or incorrect password".to_string(),
+            Status::BadRequest,
+        ))
+    })?;
 
     let password_hash = passwords::PasswordHash::from(&db_user.password)?;
     passwords::verify_password(&user.password, &password_hash).map_err(|_| {
-        CustomError::new("User not found or incorrect password", Status::BadRequest)
+        CustomError::new(
+            "User not found or incorrect password".to_string(),
+            Status::BadRequest,
+        )
     })?;
 
     let session_id = Uuid::new_v4();
