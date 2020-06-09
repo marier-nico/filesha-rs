@@ -72,9 +72,10 @@ fn main() {
             ],
         )
         .register(catchers![
-            api_error::server_error,
+            api_error::unauthorized,
             api_error::not_found,
-            api_error::unprocessable_entity
+            api_error::unprocessable_entity,
+            api_error::server_error,
         ])
         .manage(active_session_ids)
         .manage(pending_uploads)

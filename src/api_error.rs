@@ -97,11 +97,11 @@ impl<'a> From<CustomError<'a>> for ApiError {
     }
 }
 
-#[catch(500)]
-pub fn server_error(_req: &rocket::Request) -> ApiError {
+#[catch(401)]
+pub fn unauthorized(_req: &rocket::Request) -> ApiError {
     ApiError::from(CustomError {
-        status: Status::InternalServerError,
-        message: "The server encountered an error processing your request",
+        status: Status::Unauthorized,
+        message: "You may not access this resource",
     })
 }
 
@@ -118,5 +118,13 @@ pub fn unprocessable_entity(_req: &rocket::Request) -> ApiError {
     ApiError::from(CustomError {
         status: Status::UnprocessableEntity,
         message: "Invalid data format, please follow the API spec",
+    })
+}
+
+#[catch(500)]
+pub fn server_error(_req: &rocket::Request) -> ApiError {
+    ApiError::from(CustomError {
+        status: Status::InternalServerError,
+        message: "The server encountered an error processing your request",
     })
 }
