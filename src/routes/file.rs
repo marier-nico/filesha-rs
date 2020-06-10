@@ -11,6 +11,7 @@ use rocket::http::Status;
 use rocket::State;
 use rocket_contrib::json::Json;
 use std::fs;
+use std::time::Instant;
 use uuid::Uuid;
 
 /// Prepare a new file upload to the server
@@ -29,6 +30,8 @@ pub fn new_upload(
     user: User,
     pending_uploads: State<PendingUploadStore>,
 ) -> Result<Json<UploadID>, ApiError> {
+    let new_upload_store = utils::remove_old_pending_uploads(&*pending_uploads.read());
+    *pending_uploads.write() = new_upload_store;
     let path = utils::user_root_path(&user)?.join(path.into_inner().to_pathbuf()?);
     if path.is_dir() {
         Err(CustomError::new(
@@ -38,7 +41,7 @@ pub fn new_upload(
     }
 
     let upload_id = Uuid::new_v4();
-    let pending_upload = PendingUpload { path, user };
+    let pending_upload = PendingUpload { path, user, created: Instant::now() };
     pending_uploads.write().insert(upload_id, pending_upload);
 
     Ok(Json(UploadID { upload_id }))

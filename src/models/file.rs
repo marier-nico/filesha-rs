@@ -4,6 +4,7 @@ use rocket::http::Status;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::path::{Component, PathBuf};
+use std::time::Instant;
 
 #[derive(Deserialize)]
 pub struct JsonPath {
@@ -35,7 +36,9 @@ pub struct UploadID {
     pub upload_id: uuid::Uuid,
 }
 
+#[derive(Clone)]
 pub struct PendingUpload {
+    pub created: Instant,
     pub path: PathBuf,
     pub user: User,
 }

@@ -1,7 +1,7 @@
 use crate::schema::users;
 use serde::{Serialize, Deserialize};
 
-#[derive(PartialEq, Deserialize, Queryable)]
+#[derive(PartialEq, Deserialize, Queryable, Clone)]
 pub struct User {
     pub id: i32,
     pub email: String,
