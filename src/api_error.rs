@@ -104,7 +104,7 @@ impl From<CustomError> for ApiError {
 pub fn unauthorized(_req: &rocket::Request) -> ApiError {
     ApiError::from(CustomError {
         status: Status::Unauthorized,
-        message: "You may not access this resource".to_string(),
+        message: "Please login to access this resource".to_string(),
     })
 }
 
