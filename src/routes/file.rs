@@ -30,8 +30,6 @@ pub fn new_upload(
     user: User,
     pending_uploads: State<PendingUploadStore>,
 ) -> Result<Json<UploadID>, ApiError> {
-    let new_upload_store = utils::remove_old_pending_uploads(&*pending_uploads.read());
-    *pending_uploads.write() = new_upload_store;
     let path = utils::user_root_path(&user)?.join(path.into_inner().to_pathbuf()?);
     if path.is_dir() {
         Err(CustomError::new(

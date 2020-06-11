@@ -17,6 +17,9 @@ use parking_lot::RwLock;
 use rocket_contrib::databases::diesel::SqliteConnection;
 use std::collections::HashMap;
 use std::env;
+use std::sync::Arc;
+use std::thread;
+use std::time::Duration;
 use uuid::Uuid;
 
 mod api_error;
@@ -41,7 +44,7 @@ embed_migrations!();
 
 type Email = String;
 type SessionStore = RwLock<HashMap<Uuid, Email>>;
-type PendingUploadStore = RwLock<HashMap<Uuid, models::file::PendingUpload>>;
+type PendingUploadStore = Arc<RwLock<HashMap<Uuid, models::file::PendingUpload>>>;
 
 #[database("data_db")]
 pub struct DBConnection(SqliteConnection);
@@ -55,7 +58,14 @@ fn main() {
     embedded_migrations::run_with_output(&connection, &mut std::io::stdout())
         .expect("Could not apply database migrations");
     let active_session_ids: SessionStore = RwLock::new(HashMap::new());
-    let pending_uploads: PendingUploadStore = RwLock::new(HashMap::new());
+    let pending_uploads: PendingUploadStore = Arc::new(RwLock::new(HashMap::new()));
+
+    let pending_uploads_thread = pending_uploads.clone();
+    thread::spawn(move || loop {
+        thread::sleep(Duration::from_secs(60 * 60)); // Run the cleanup every hour
+        let new_upload_store = utils::remove_old_pending_uploads(&*pending_uploads_thread.read());
+        *pending_uploads_thread.write() = new_upload_store;
+    });
 
     rocket::ignite()
         .attach(DBConnection::fairing())

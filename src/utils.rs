@@ -29,7 +29,7 @@ pub fn ensure_all_env_vars_are_set() -> Result<(), ApiError> {
 pub fn remove_old_pending_uploads(
     pending_uploads: &HashMap<Uuid, PendingUpload>,
 ) -> HashMap<Uuid, PendingUpload> {
-    let seconds_in_a_day = 60 * 60 * 24;
+    let seconds_in_a_day = 60 * 60 * 24; // Keep pending uploads for one day before getting rid of them
     pending_uploads
         .into_iter()
         .filter(|(_uuid, pending_upload)| {
