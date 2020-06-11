@@ -32,7 +32,7 @@ pub fn remove_old_pending_uploads(
     let seconds_in_a_day = 60 * 60 * 24;
     pending_uploads
         .into_iter()
-        .filter(|(uuid, pending_upload)| {
+        .filter(|(_uuid, pending_upload)| {
             let duration_since = Instant::now().duration_since(pending_upload.created);
             duration_since < Duration::new(seconds_in_a_day, 0)
         })
