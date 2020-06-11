@@ -42,8 +42,7 @@ mod routes {
 
 embed_migrations!();
 
-type Email = String;
-type SessionStore = RwLock<HashMap<Uuid, Email>>;
+type SessionStore = RwLock<HashMap<Uuid, models::user::ActiveSession>>;
 type PendingUploadStore = Arc<RwLock<HashMap<Uuid, models::file::PendingUpload>>>;
 
 #[database("data_db")]

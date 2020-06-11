@@ -1,5 +1,6 @@
 use crate::schema::users;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use std::time::Instant;
 
 #[derive(PartialEq, Deserialize, Queryable, Clone)]
 pub struct User {
@@ -38,4 +39,9 @@ impl UserResult {
 pub struct UserLogin {
     pub email: String,
     pub password: String,
+}
+
+pub struct ActiveSession {
+    pub email: String,
+    pub created: Instant,
 }

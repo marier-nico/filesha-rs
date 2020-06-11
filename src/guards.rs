@@ -50,7 +50,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for User {
         };
         let active_session_ids = session_store.read();
         let user_email = match active_session_ids.get(&session_id) {
-            Some(email) => email,
+            Some(session) => session.email.to_string(),
             None => {
                 return Outcome::Failure((
                     Status::Unauthorized,

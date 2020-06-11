@@ -1,12 +1,13 @@
 use crate::api_error::{ApiError, CustomError};
 use crate::db;
-use crate::models::user::{UserCreate, UserLogin, UserResult};
+use crate::models::user::{ActiveSession, UserCreate, UserLogin, UserResult};
 use crate::passwords;
 use crate::{DBConnection, SessionStore};
 use rocket::http::{Cookie, Cookies, Status};
 use rocket::State;
 use rocket_contrib::json::Json;
 use std::env;
+use std::time::Instant;
 use uuid::Uuid;
 
 #[post("/register", data = "<user>")]
@@ -34,7 +35,13 @@ pub fn register(
     let session_id = Uuid::new_v4();
     cookies.add_private(Cookie::new("session", session_id.to_string()));
     let mut session_ids = active_session_ids.write();
-    session_ids.insert(session_id, user.email);
+    session_ids.insert(
+        session_id,
+        ActiveSession {
+            email: user.email,
+            created: Instant::now(),
+        },
+    );
 
     Ok(Json(UserResult::from(&created_user)))
 }
@@ -77,7 +84,13 @@ pub fn login(
     let session_id = Uuid::new_v4();
     cookies.add_private(Cookie::new("session", session_id.to_string()));
     let mut active_session_ids = active_session_ids.write();
-    active_session_ids.insert(session_id, db_user.email.to_string());
+    active_session_ids.insert(
+        session_id,
+        ActiveSession {
+            email: db_user.email.to_string(),
+            created: Instant::now(),
+        },
+    );
 
     Ok(Json(UserResult::from(&db_user)))
 }
