@@ -42,7 +42,7 @@ mod routes {
 
 embed_migrations!();
 
-type SessionStore = RwLock<HashMap<Uuid, models::user::ActiveSession>>;
+type SessionStore = Arc<RwLock<HashMap<Uuid, models::user::ActiveSession>>>;
 type PendingUploadStore = Arc<RwLock<HashMap<Uuid, models::file::PendingUpload>>>;
 
 #[database("data_db")]
@@ -56,7 +56,7 @@ fn main() {
         .expect("Could not connect to database");
     embedded_migrations::run_with_output(&connection, &mut std::io::stdout())
         .expect("Could not apply database migrations");
-    let active_session_ids: SessionStore = RwLock::new(HashMap::new());
+    let active_session_ids: SessionStore = Arc::new(RwLock::new(HashMap::new()));
     let pending_uploads: PendingUploadStore = Arc::new(RwLock::new(HashMap::new()));
 
     let pending_uploads_thread = pending_uploads.clone();
@@ -64,6 +64,13 @@ fn main() {
         thread::sleep(Duration::from_secs(60 * 60)); // Run the cleanup every hour
         let new_upload_store = utils::remove_old_pending_uploads(&*pending_uploads_thread.read());
         *pending_uploads_thread.write() = new_upload_store;
+    });
+
+    let active_session_ids_thread = active_session_ids.clone();
+    thread::spawn(move || loop {
+        thread::sleep(Duration::from_secs(60 * 60)); // Run the cleanup every hour
+        let new_active_sessions = utils::remove_old_sessions(&*active_session_ids_thread.read());
+        *active_session_ids_thread.write() = new_active_sessions;
     });
 
     rocket::ignite()

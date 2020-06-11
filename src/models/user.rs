@@ -41,6 +41,7 @@ pub struct UserLogin {
     pub password: String,
 }
 
+#[derive(Clone)]
 pub struct ActiveSession {
     pub email: String,
     pub created: Instant,

@@ -1,6 +1,6 @@
 use crate::api_error::ApiError;
 use crate::models::file::PendingUpload;
-use crate::models::user::User;
+use crate::models::user::{User, ActiveSession};
 use std::collections::HashMap;
 use std::env;
 use std::path::PathBuf;
@@ -31,6 +31,20 @@ pub fn remove_old_pending_uploads(
 ) -> HashMap<Uuid, PendingUpload> {
     let seconds_in_a_day = 60 * 60 * 24; // Keep pending uploads for one day before getting rid of them
     pending_uploads
+        .into_iter()
+        .filter(|(_uuid, pending_upload)| {
+            let duration_since = Instant::now().duration_since(pending_upload.created);
+            duration_since < Duration::new(seconds_in_a_day, 0)
+        })
+        .map(|(uuid, v)| (uuid.clone(), v.clone()))
+        .collect()
+}
+
+pub fn remove_old_sessions(
+    active_sessions: &HashMap<Uuid, ActiveSession>,
+) -> HashMap<Uuid, ActiveSession> {
+    let seconds_in_a_day = 60 * 60 * 24 * 7; // Keep sessions for one week before getting rid of them
+    active_sessions
         .into_iter()
         .filter(|(_uuid, pending_upload)| {
             let duration_since = Instant::now().duration_since(pending_upload.created);
