@@ -5,15 +5,16 @@ authors = ["Nicolas Marier <software@nmarier.com>"]
 edition = "2018"
 
 [dependencies]
-rocket = "0.4.4"
-ring = "0.13.5"
 base64 = "0.12.1"
-lazy_static = "1.4.0"
-serde = {version = "1.0.110", features = ["derive"]}
 diesel = {version = "1.4.4", features = ["sqlite"]}
 diesel_migrations = "1.4.0"
 dotenv = "0.15.0"
+lazy_static = "1.4.0"
 parking_lot = { version = "0.10", features = ["nightly"] }
+rocket = "0.4.4"
+ring = "0.13.5"
+serde = {version = "1.0.110", features = ["derive"]}
+timer = "0.2.0"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 
 [dependencies.rocket_contrib]
