@@ -8,10 +8,12 @@ use crate::utils;
 use crate::PendingUploadStore;
 use rocket::data::Data;
 use rocket::http::Status;
+use rocket::response::NamedFile;
 use rocket::State;
 use rocket_contrib::json::Json;
 use std::fs;
 use std::time::Instant;
+use tempfile::tempdir;
 use uuid::Uuid;
 
 /// Prepare a new file upload to the server
@@ -39,7 +41,11 @@ pub fn new_upload(
     }
 
     let upload_id = Uuid::new_v4();
-    let pending_upload = PendingUpload { path, user, created: Instant::now() };
+    let pending_upload = PendingUpload {
+        path,
+        user,
+        created: Instant::now(),
+    };
     pending_uploads.write().insert(upload_id, pending_upload);
 
     Ok(Json(UploadID { upload_id }))
@@ -72,20 +78,12 @@ pub fn upload(
         .to_string();
 
     if let Some(path) = associated_upload.path.parent() {
-        fs::create_dir_all(path).map_err(|e| {
-            CustomError::new(
-                e.to_string(),
-                Status::InternalServerError,
-            )
-        })?;
+        fs::create_dir_all(path)
+            .map_err(|e| CustomError::new(e.to_string(), Status::InternalServerError))?;
     }
     drop(pending_uploads); // Release the lock explicitly before streaming the file to disk
-    file.stream_to_file(str_path).map_err(|e| {
-        CustomError::new(
-            e.to_string(),
-            Status::InternalServerError,
-        )
-    })?;
+    file.stream_to_file(str_path)
+        .map_err(|e| CustomError::new(e.to_string(), Status::InternalServerError))?;
 
     let mut pending_uploads = pending_uploads_lock.write();
     pending_uploads.remove(&parsed_id);
@@ -99,12 +97,8 @@ pub fn upload(
 pub fn ls(path: Json<JsonPath>, user: User) -> Result<Json<DirContents>, ApiError> {
     let path = utils::user_root_path(&user)?.join(path.into_inner().to_pathbuf()?);
     let mut contents = vec![];
-    let entries = fs::read_dir(path).map_err(|e| {
-        CustomError::new(
-            e.to_string(),
-            Status::BadRequest,
-        )
-    })?;
+    let entries =
+        fs::read_dir(path).map_err(|e| CustomError::new(e.to_string(), Status::BadRequest))?;
     for entry in entries {
         let entry = entry?;
         let metadata = entry.metadata()?;
@@ -137,4 +131,29 @@ pub fn mkdir(path: Json<JsonPath>, user: User) -> Result<Json<Message>, ApiError
     Ok(Json(Message {
         message: "Directory created successfully".to_string(),
     }))
+}
+
+#[post("/download", data = "<path>")]
+pub fn download(path: Json<JsonPath>, user: User) -> Result<NamedFile, ApiError> {
+    let path = utils::user_root_path(&user)?.join(path.into_inner().to_pathbuf()?);
+
+    if path.is_dir() {
+        let temp_dir =
+            tempdir().map_err(|e| CustomError::new(e.to_string(), Status::InternalServerError))?;
+        let file_path = temp_dir
+            .path()
+            .join(format!("{:?}.zip", path.file_name().unwrap()));
+        let zip_file = fs::File::create(&file_path)
+            .map_err(|e| CustomError::new(e.to_string(), Status::InternalServerError))?;
+
+        utils::zip_dir_recursive(&path, &zip_file)
+            .map_err(|e| CustomError::new(e.to_string(), Status::InternalServerError))?;
+        let file = NamedFile::open(file_path)
+            .map_err(|e| CustomError::new(e.to_string(), Status::BadRequest))?;
+        Ok(file)
+    } else {
+        let file = NamedFile::open(path)
+            .map_err(|e| CustomError::new(e.to_string(), Status::BadRequest))?;
+        Ok(file)
+    }
 }

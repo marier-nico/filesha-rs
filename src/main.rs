@@ -85,7 +85,8 @@ fn main() {
                 routes::file::new_upload,
                 routes::file::upload,
                 routes::file::ls,
-                routes::file::mkdir
+                routes::file::mkdir,
+                routes::file::download,
             ],
         )
         .register(catchers![
