@@ -1,10 +1,12 @@
 use crate::api_error::{ApiError, CustomError};
+use crate::db;
 use crate::models::common_models::Message;
 use crate::models::file::{
-    DirContents, FileSystemElement, FileSystemElementType, JsonPath, PendingUpload, UploadID,
+    DirContents, FileSystemElement, FileSystemElementType, JsonPath, PendingUpload, Share, UploadID,
 };
 use crate::models::user::User;
 use crate::utils;
+use crate::DBConnection;
 use crate::PendingUploadStore;
 use rocket::data::Data;
 use rocket::http::Status;
@@ -12,6 +14,7 @@ use rocket::response::NamedFile;
 use rocket::State;
 use rocket_contrib::json::Json;
 use std::fs;
+use std::path::Path;
 use std::time::Instant;
 use tempfile::tempdir;
 use uuid::Uuid;
@@ -137,6 +140,53 @@ pub fn mkdir(path: Json<JsonPath>, user: User) -> Result<Json<Message>, ApiError
 pub fn download(path: Json<JsonPath>, user: User) -> Result<NamedFile, ApiError> {
     let path = utils::user_root_path(&user)?.join(path.into_inner().to_pathbuf()?);
 
+    get_named_file(&path)
+}
+
+#[post("/share", data = "<path>")]
+pub fn create_share(
+    path: Json<JsonPath>,
+    user: User,
+    conn: DBConnection,
+) -> Result<Json<Share>, ApiError> {
+    let user_prefix = utils::user_root_path(&user)?;
+    let user_path = path.into_inner().to_pathbuf()?;
+    let full_path = user_prefix.join(&user_path);
+
+    let share = Share {
+        link: Uuid::new_v4().to_string(),
+        path: full_path
+            .to_str()
+            .ok_or_else(|| ApiError::InternalServerError)?
+            .to_string(),
+    };
+    db::file::save_share(&share, &conn)?;
+
+    // Return just the user path to avoid revealing the user's ID
+    let returned_share = Share {
+        link: share.link.clone(),
+        path: user_path
+            .to_str()
+            .ok_or_else(|| ApiError::InternalServerError)?
+            .to_string(),
+    };
+    Ok(Json(returned_share))
+}
+
+#[get("/shared/<id>")]
+pub fn download_shared(id: String, conn: DBConnection) -> Result<NamedFile, ApiError> {
+    let share = db::file::get_share(&id, &conn)?.ok_or_else(|| {
+        CustomError::new(
+            "This share ID does not exist".to_string(),
+            Status::BadRequest,
+        )
+    })?;
+
+    let path = Path::new(&share.path);
+    get_named_file(path)
+}
+
+fn get_named_file(path: &Path) -> Result<NamedFile, ApiError> {
     if path.is_dir() {
         let temp_dir =
             tempdir().map_err(|e| CustomError::new(e.to_string(), Status::InternalServerError))?;
@@ -146,7 +196,7 @@ pub fn download(path: Json<JsonPath>, user: User) -> Result<NamedFile, ApiError>
         let zip_file = fs::File::create(&file_path)
             .map_err(|e| CustomError::new(e.to_string(), Status::InternalServerError))?;
 
-        utils::zip_dir_recursive(&path, &zip_file)
+        utils::zip_dir_recursive(path, &zip_file)
             .map_err(|e| CustomError::new(e.to_string(), Status::InternalServerError))?;
         let file = NamedFile::open(file_path)
             .map_err(|e| CustomError::new(e.to_string(), Status::BadRequest))?;

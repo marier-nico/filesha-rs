@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::{ErrorKind, Read, Write};
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
 use walkdir::WalkDir;
@@ -64,7 +64,7 @@ pub fn remove_old_sessions(
         .collect()
 }
 
-pub fn zip_dir_recursive(source_dir: &PathBuf, destination_file: &File) -> ZipResult<()> {
+pub fn zip_dir_recursive(source_dir: &Path, destination_file: &File) -> ZipResult<()> {
     if !source_dir.is_dir() {
         return Err(ZipError::FileNotFound);
     }

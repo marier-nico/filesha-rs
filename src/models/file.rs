@@ -1,5 +1,6 @@
 use crate::api_error::{ApiError, CustomError};
 use crate::models::user::User;
+use crate::schema::shares;
 use rocket::http::Status;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -65,4 +66,11 @@ impl fmt::Debug for DirContents {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_list().entries(self.contents.iter()).finish()
     }
+}
+
+#[table_name = "shares"]
+#[derive(Insertable, Queryable, Serialize)]
+pub struct Share {
+    pub link: String,
+    pub path: String
 }

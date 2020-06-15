@@ -28,6 +28,7 @@ mod passwords;
 mod schema;
 mod utils;
 mod db {
+    pub mod file;
     pub mod user;
 }
 mod models {
@@ -87,6 +88,8 @@ fn main() {
                 routes::file::ls,
                 routes::file::mkdir,
                 routes::file::download,
+                routes::file::create_share,
+                routes::file::download_shared
             ],
         )
         .register(catchers![
