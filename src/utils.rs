@@ -95,7 +95,7 @@ pub fn zip_dir_recursive(source_dir: &Path, destination_file: &File) -> ZipResul
             let mut buf: Vec<u8> = Vec::with_capacity(buf_size);
             unsafe { buf.set_len(buf_size) }
             loop {
-                let len = match file.read(&mut buf) {
+                let _len = match file.read(&mut buf) {
                     Ok(0) => break,
                     Ok(len) => len,
                     Err(ref e) if e.kind() == ErrorKind::Interrupted => continue,
