@@ -7,7 +7,7 @@ use std::fmt;
 
 lazy_static! {
     static ref RANDOMNESS_SOURCE: SystemRandom = {
-        let mut random_bytes = [0; 1];
+        let mut random_bytes = [0; 128];
         let randomness_source = SystemRandom::new();
         randomness_source.fill(&mut random_bytes).unwrap(); // Initialize source of randomness
 
