@@ -20,9 +20,14 @@ This project is not meant to be used in production by anyone, its aim is to expe
 building something concrete. However, this may change over time if and when features are added and the
 existing ones improve.
 
+# API Methods
+
+- `File`: https://documenter.getpostman.com/view/4572944/TVCiSkkP
+- `User`: https://documenter.getpostman.com/view/4572944/TVCiSkpf
+
 # Features
 
-### Performance
+## Performance
 
 Filesha-rs was built with performance in mind and efforts were made to deliver as much performance
 as possible. The decision to implement the API in Rust also partly came from the desire to offer solid
